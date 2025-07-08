@@ -21,6 +21,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,6 +31,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.abs
 import shakir.kadakkadan.islamic.myapplication.model.CandleData
 import kotlin.math.max
 import kotlin.math.min
@@ -183,19 +186,22 @@ fun CandlestickChart(
                             }
                         }
                         .pointerInput(Unit) {
-                            // Handle zoom gestures
+                            // Handle scroll zoom for X-axis (touchpad scroll)
                             awaitPointerEventScope {
                                 while (true) {
                                     val event = awaitPointerEvent()
-                                    if (event.changes.size >= 2) {
-                                        // Two finger scroll - zoom X axis
-                                        val scrollDelta = event.changes.first().scrollDelta
-                                        if (scrollDelta.y > 0) {
-                                            // Scroll up - zoom in
-                                            xZoom = (xZoom * 1.1f).coerceIn(0.5f, 5f)
-                                        } else if (scrollDelta.y < 0) {
-                                            // Scroll down - zoom out
-                                            xZoom = (xZoom * 0.9f).coerceIn(0.5f, 5f)
+                                    event.changes.forEach { change ->
+                                        val scroll = change.scrollDelta
+                                        // Check if this is a scroll event (not just pointer movement)
+                                        if (abs(scroll.y) > 0.1f) {
+                                            if (scroll.y > 0) {
+                                                // Scroll up - zoom in X-axis
+                                                xZoom = (xZoom * 1.1f).coerceIn(0.5f, 5f)
+                                            } else {
+                                                // Scroll down - zoom out X-axis
+                                                xZoom = (xZoom * 0.9f).coerceIn(0.5f, 5f)
+                                            }
+                                            change.consume()
                                         }
                                     }
                                 }
@@ -348,27 +354,31 @@ fun PriceBar(
     Box(
         modifier = modifier
             .pointerInput(Unit) {
-                detectDragGestures { _, _ ->
-                    // Handle click detection
-                    onPriceBarClick()
-                }
-            }
-            .pointerInput(isPriceBarClicked) {
-                if (isPriceBarClicked) {
-                    // Handle Y-axis zoom when price bar is clicked
-                    awaitPointerEventScope {
-                        while (true) {
-                            val event = awaitPointerEvent()
-                            val scrollDelta = event.changes.first().scrollDelta
-                            if (scrollDelta.y > 0) {
-                                // Scroll up - zoom in
-                                onYZoomChange((yZoom * 1.1f).coerceIn(0.5f, 5f))
-                            } else if (scrollDelta.y < 0) {
-                                // Scroll down - zoom out
-                                onYZoomChange((yZoom * 0.9f).coerceIn(0.5f, 5f))
+                // Handle Y-axis zoom with scroll (no need to click first)
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        event.changes.forEach { change ->
+                            val scroll = change.scrollDelta
+                            // Check if this is a scroll event
+                            if (abs(scroll.y) > 0.1f) {
+                                if (scroll.y > 0) {
+                                    // Scroll up - zoom in Y-axis
+                                    onYZoomChange((yZoom * 1.1f).coerceIn(0.5f, 5f))
+                                } else {
+                                    // Scroll down - zoom out Y-axis
+                                    onYZoomChange((yZoom * 0.9f).coerceIn(0.5f, 5f))
+                                }
+                                change.consume()
                             }
                         }
                     }
+                }
+            }
+            .pointerInput(Unit) {
+                detectDragGestures { _, _ ->
+                    // Handle click detection for visual feedback
+                    onPriceBarClick()
                 }
             }
     ) {
