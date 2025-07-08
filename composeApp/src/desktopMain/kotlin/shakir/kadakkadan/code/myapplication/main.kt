@@ -1,4 +1,4 @@
-package shakir.kadakkadan.islamic.myapplication
+package shakir.kadakkadan.code.myapplication
 
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application

@@ -1,40 +1,29 @@
-package shakir.kadakkadan.islamic.myapplication.ui
+package shakir.kadakkadan.code.myapplication.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.PointerInputChange
-import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.abs
-import shakir.kadakkadan.islamic.myapplication.model.CandleData
-import kotlin.math.max
-import kotlin.math.min
+import shakir.kadakkadan.code.myapplication.model.CandleData
 
 @Composable
 fun CandlestickChart(
@@ -56,7 +45,6 @@ fun CandlestickChart(
     var yZoom by remember { mutableStateOf(1f) }
     var xOffset by remember { mutableStateOf(0f) }
     var yOffset by remember { mutableStateOf(0f) }
-    var isPriceBarClicked by remember { mutableStateOf(false) }
     
     val coroutineScope = rememberCoroutineScope()
     
@@ -68,7 +56,7 @@ fun CandlestickChart(
     val candleWidth = baseCandleWidth * xZoom
     val candleSpacing = baseCandleSpacing * xZoom
     val totalWidth = candles.size * (candleWidth + candleSpacing)
-    val chartHeight = 600f * yZoom // Make chart taller for vertical scrolling
+    val baseChartHeight = 600f // Base height without zoom
     
     val minPrice = candles.minOfOrNull { minOf(it.low, it.open, it.close, it.high) } ?: 0.0
     val maxPrice = candles.maxOfOrNull { maxOf(it.high, it.open, it.close, it.low) } ?: 100.0
@@ -109,7 +97,7 @@ fun CandlestickChart(
             ) {
                 // X-axis zoom controls
                 Button(
-                    onClick = { xZoom = (xZoom * 1.2f).coerceIn(0.5f, 5f) },
+                    onClick = { xZoom = (xZoom + 0.2f).coerceIn(0.5f, 5f) },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF238636)),
                     modifier = Modifier.height(32.dp)
                 ) {
@@ -117,7 +105,7 @@ fun CandlestickChart(
                 }
                 
                 Button(
-                    onClick = { xZoom = (xZoom * 0.8f).coerceIn(0.5f, 5f) },
+                    onClick = { xZoom = (xZoom - 0.2f).coerceIn(0.5f, 5f) },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF238636)),
                     modifier = Modifier.height(32.dp)
                 ) {
@@ -126,7 +114,7 @@ fun CandlestickChart(
                 
                 // Y-axis zoom controls
                 Button(
-                    onClick = { yZoom = (yZoom * 1.2f).coerceIn(0.5f, 5f) },
+                    onClick = { yZoom = (yZoom + 0.2f).coerceIn(0.5f, 5f) },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1f6feb)),
                     modifier = Modifier.height(32.dp)
                 ) {
@@ -134,7 +122,7 @@ fun CandlestickChart(
                 }
                 
                 Button(
-                    onClick = { yZoom = (yZoom * 0.8f).coerceIn(0.5f, 5f) },
+                    onClick = { yZoom = (yZoom - 0.2f).coerceIn(0.5f, 5f) },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1f6feb)),
                     modifier = Modifier.height(32.dp)
                 ) {
@@ -194,13 +182,14 @@ fun CandlestickChart(
                                         val scroll = change.scrollDelta
                                         // Check if this is a scroll event (not just pointer movement)
                                         if (abs(scroll.y) > 0.1f) {
-                                            if (scroll.y > 0) {
+                                            val newZoom = if (scroll.y > 0) {
                                                 // Scroll up - zoom in X-axis
-                                                xZoom = (xZoom * 1.1f).coerceIn(0.5f, 5f)
+                                                xZoom + 0.1f
                                             } else {
                                                 // Scroll down - zoom out X-axis
-                                                xZoom = (xZoom * 0.9f).coerceIn(0.5f, 5f)
+                                                xZoom - 0.1f
                                             }
+                                            xZoom = newZoom.coerceIn(0.5f, 5f)
                                             change.consume()
                                         }
                                     }
@@ -220,7 +209,7 @@ fun CandlestickChart(
                             minPrice = minPrice,
                             maxPrice = maxPrice,
                             priceRange = priceRange,
-                            chartHeight = size.height,
+                            chartHeight = baseChartHeight,
                             xOffset = xOffset,
                             yOffset = yOffset,
                             xZoom = xZoom,
@@ -243,18 +232,18 @@ fun CandlestickChart(
                 )
             }
             
-            // Price bar on right with click handling
+            // Price bar on right with drag zoom
             PriceBar(
                 minPrice = minPrice,
                 maxPrice = maxPrice,
-                chartHeight = chartHeight,
+                chartHeight = baseChartHeight,
                 yOffset = yOffset,
                 yZoom = yZoom,
-                isPriceBarClicked = isPriceBarClicked,
-                onPriceBarClick = { isPriceBarClicked = !isPriceBarClicked },
+                isPriceBarClicked = false, // Not used anymore
+                onPriceBarClick = { }, // Not used anymore
                 onYZoomChange = { newZoom -> yZoom = newZoom },
                 modifier = Modifier
-                    .width(80.dp)
+                    .width(60.dp)
                     .fillMaxHeight()
                     .background(Color(0xFF21262D))
             )
@@ -282,11 +271,18 @@ private fun DrawScope.drawCandlestickChart(
         if (x + candleWidth < 0 || x > size.width) return@forEachIndexed
         
         // Normalize prices to chart height with zoom and offset
-        val scaledChartHeight = chartHeight * yZoom
-        val openY = (scaledChartHeight - ((candle.open - minPrice) / priceRange * scaledChartHeight)).toFloat() + yOffset
-        val closeY = (scaledChartHeight - ((candle.close - minPrice) / priceRange * scaledChartHeight)).toFloat() + yOffset
-        val highY = (scaledChartHeight - ((candle.high - minPrice) / priceRange * scaledChartHeight)).toFloat() + yOffset
-        val lowY = (scaledChartHeight - ((candle.low - minPrice) / priceRange * scaledChartHeight)).toFloat() + yOffset
+        val baseHeight = size.height
+        val scaledHeight = baseHeight * yZoom
+        
+        val openNorm = (candle.open - minPrice) / priceRange
+        val closeNorm = (candle.close - minPrice) / priceRange
+        val highNorm = (candle.high - minPrice) / priceRange
+        val lowNorm = (candle.low - minPrice) / priceRange
+        
+        val openY = (scaledHeight - (openNorm * scaledHeight)).toFloat() + yOffset
+        val closeY = (scaledHeight - (closeNorm * scaledHeight)).toFloat() + yOffset
+        val highY = (scaledHeight - (highNorm * scaledHeight)).toFloat() + yOffset
+        val lowY = (scaledHeight - (lowNorm * scaledHeight)).toFloat() + yOffset
         
         // Determine candle color (green for bullish, red for bearish) - dark theme colors
         val candleColor = if (candle.close > candle.open) {
@@ -311,7 +307,7 @@ private fun DrawScope.drawCandlestickChart(
         drawRect(
             color = candleColor,
             topLeft = Offset(x, bodyTop),
-            size = androidx.compose.ui.geometry.Size(candleWidth, bodyHeight)
+            size = Size(candleWidth, bodyHeight)
         )
         
         // Draw borders for hollow candles when close > open
@@ -319,8 +315,8 @@ private fun DrawScope.drawCandlestickChart(
             drawRect(
                 color = Color(0xFF00D4AA), // Bright green border for bullish candles
                 topLeft = Offset(x, bodyTop),
-                size = androidx.compose.ui.geometry.Size(candleWidth, bodyHeight),
-                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f)
+                size = Size(candleWidth, bodyHeight),
+                style = Stroke(width = 2f)
             )
         }
     }
@@ -339,13 +335,13 @@ fun PriceBar(
     modifier: Modifier = Modifier
 ) {
     val priceRange = maxPrice - minPrice
-    val priceSteps = 8 // Number of price levels to show
+    val priceSteps = 12 // More price levels for better granularity
     
     // Calculate visible price range based on zoom and offset
-    val scaledChartHeight = chartHeight * yZoom
+    val effectiveHeight = chartHeight * yZoom
     val visibleHeight = 400f
-    val visibleTopRatio = (-yOffset) / maxOf(scaledChartHeight - visibleHeight, 1f)
-    val visibleBottomRatio = (visibleHeight - yOffset) / scaledChartHeight
+    val visibleTopRatio = (-yOffset) / maxOf(effectiveHeight - visibleHeight, 1f)
+    val visibleBottomRatio = (visibleHeight - yOffset) / effectiveHeight
     
     val visibleMinPrice = minPrice + (priceRange * (1 - visibleBottomRatio))
     val visibleMaxPrice = minPrice + (priceRange * (1 - visibleTopRatio))
@@ -354,47 +350,41 @@ fun PriceBar(
     Box(
         modifier = modifier
             .pointerInput(Unit) {
-                // Handle Y-axis zoom with scroll (no need to click first)
-                awaitPointerEventScope {
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        event.changes.forEach { change ->
-                            val scroll = change.scrollDelta
-                            // Check if this is a scroll event
-                            if (abs(scroll.y) > 0.1f) {
-                                if (scroll.y > 0) {
-                                    // Scroll up - zoom in Y-axis
-                                    onYZoomChange((yZoom * 1.1f).coerceIn(0.5f, 5f))
-                                } else {
-                                    // Scroll down - zoom out Y-axis
-                                    onYZoomChange((yZoom * 0.9f).coerceIn(0.5f, 5f))
-                                }
-                                change.consume()
-                            }
+                detectDragGestures { change, dragAmount ->
+                    // Continuous Y-axis zoom while dragging
+                    val dragY = dragAmount.y
+                    println("Price bar drag: dragY = $dragY, current yZoom = $yZoom")
+                    
+                    // Apply zoom change based on drag amount
+                    if (abs(dragY) > 0.1f) {
+                        val zoomDelta = if (dragY < 0) {
+                            // Drag up - zoom in Y-axis
+                            0.02f
+                        } else {
+                            // Drag down - zoom out Y-axis
+                            -0.02f
                         }
+                        val newZoom = yZoom + zoomDelta
+                        val clampedZoom = newZoom.coerceIn(0.5f, 5f)
+                        println("Setting new Y zoom: $clampedZoom")
+                        onYZoomChange(clampedZoom)
                     }
-                }
-            }
-            .pointerInput(Unit) {
-                detectDragGestures { _, _ ->
-                    // Handle click detection for visual feedback
-                    onPriceBarClick()
                 }
             }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 8.dp),
+                .padding(horizontal = 4.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             repeat(priceSteps) { index ->
                 val price = visibleMaxPrice - (visiblePriceRange * index / (priceSteps - 1))
                 Text(
-                    text = "$%.2f".format(price),
-                    color = if (isPriceBarClicked) Color(0xFF00D4AA) else Color(0xFF8B949E),
-                    fontSize = 11.sp,
-                    modifier = Modifier.padding(vertical = 2.dp)
+                    text = "$%.0f".format(price),
+                    color = Color(0xFF8B949E),
+                    fontSize = 9.sp,
+                    modifier = Modifier.padding(vertical = 1.dp)
                 )
             }
         }

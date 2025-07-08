@@ -1,4 +1,4 @@
-package shakir.kadakkadan.islamic.myapplication.model
+package shakir.kadakkadan.code.myapplication.model
 
 import kotlinx.serialization.Serializable
 

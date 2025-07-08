@@ -1,4 +1,4 @@
-package shakir.kadakkadan.islamic.myapplication
+package shakir.kadakkadan.code.myapplication
 
 class Greeting {
     private val platform = getPlatform()

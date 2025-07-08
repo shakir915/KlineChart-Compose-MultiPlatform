@@ -1,4 +1,4 @@
-package shakir.kadakkadan.islamic.myapplication
+package shakir.kadakkadan.code.myapplication
 
 class JVMPlatform {
     val name: String = "Java ${System.getProperty("java.version")}"

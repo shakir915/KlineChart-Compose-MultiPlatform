@@ -1,4 +1,4 @@
-package shakir.kadakkadan.islamic.myapplication.api
+package shakir.kadakkadan.code.myapplication.api
 
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -6,9 +6,8 @@ import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
-import shakir.kadakkadan.islamic.myapplication.model.CandleData
-import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.builtins.serializer
+import shakir.kadakkadan.code.myapplication.model.CandleData
+import kotlinx.serialization.json.JsonElement
 
 class BinanceApi {
     private val client = HttpClient {
@@ -27,7 +26,7 @@ class BinanceApi {
             parameter("limit", limit)
         }
         
-        val rawData: List<List<kotlinx.serialization.json.JsonElement>> = response.body()
+        val rawData: List<List<JsonElement>> = response.body()
         
         return rawData.map { item ->
             CandleData(

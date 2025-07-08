@@ -42,11 +42,11 @@ kotlin {
 
 compose.desktop {
     application {
-        mainClass = "shakir.kadakkadan.islamic.myapplication.MainKt"
+        mainClass = "shakir.kadakkadan.code.myapplication.MainKt"
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "shakir.kadakkadan.islamic.myapplication"
+            packageName = "shakir.kadakkadan.code.myapplication"
             packageVersion = "1.0.0"
         }
     }
