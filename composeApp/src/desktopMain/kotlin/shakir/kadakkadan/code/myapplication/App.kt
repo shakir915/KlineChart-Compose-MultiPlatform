@@ -31,7 +31,7 @@ fun App() {
         
         LaunchedEffect(Unit) {
             try {
-                candles = binanceApi.getBtcUsdtKlines(interval = "1d", limit = 100)
+                candles = binanceApi.getBtcUsdtKlines(interval = "1d")
             } catch (e: Exception) {
                 println("Error fetching data: ${e.message}")
             }
@@ -48,7 +48,7 @@ fun App() {
                 onClick = { 
                     coroutineScope.launch {
                         try {
-                            candles = binanceApi.getBtcUsdtKlines(interval = "1d", limit = 100)
+                            candles = binanceApi.getBtcUsdtKlines(interval = "1d")
                         } catch (e: Exception) {
                             println("Error refreshing data: ${e.message}")
                         }

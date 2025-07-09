@@ -19,7 +19,7 @@ class BinanceApi {
         }
     }
 
-    suspend fun getBtcUsdtKlines(interval: String = "1d", limit: Int = 100): List<CandleData> {
+    suspend fun getBtcUsdtKlines(interval: String = "1d", limit: Int = 1000): List<CandleData> {
         val response = client.get("https://api.binance.com/api/v3/klines") {
             parameter("symbol", "BTCUSDT")
             parameter("interval", interval)
