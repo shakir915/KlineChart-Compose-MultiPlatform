@@ -27,10 +27,21 @@ import java.util.*
 import kotlin.math.abs
 import shakir.kadakkadan.code.myapplication.model.CandleData
 
+enum class Timeframe(val displayName: String, val apiValue: String) {
+    ONE_MINUTE("1m", "1m"),
+    FIVE_MINUTES("5m", "5m"),
+    FIFTEEN_MINUTES("15m", "15m"),
+    ONE_HOUR("1h", "1h"),
+    FOUR_HOURS("4h", "4h"),
+    ONE_DAY("1d", "1d")
+}
+
 @Composable
 fun CandlestickChart(
     candles: List<CandleData>,
     symbol: String = "BTC/USDT",
+    selectedTimeframe: Timeframe = Timeframe.ONE_DAY,
+    onTimeframeChanged: (Timeframe) -> Unit = {},
     onLoadMoreHistoricalData: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -94,6 +105,15 @@ fun CandlestickChart(
                     color = Color(0xFF8B949E) // Muted gray for secondary text
                 )
             }
+            
+            // Timeframe selector
+            TimeframeSelector(
+                selectedTimeframe = selectedTimeframe,
+                onTimeframeSelected = onTimeframeChanged,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            )
             
             // Zoom control buttons
             Row(
@@ -614,5 +634,55 @@ fun CrosshairTimeLabel(
                 fontSize = 11.sp
             )
         }
+    }
+}
+
+@Composable
+fun TimeframeSelector(
+    selectedTimeframe: Timeframe,
+    onTimeframeSelected: (Timeframe) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = "Timeframe:",
+            fontSize = 12.sp,
+            color = Color(0xFF8B949E),
+            modifier = Modifier.align(Alignment.CenterVertically)
+        )
+        
+        Timeframe.values().forEach { timeframe ->
+            TimeframeButton(
+                timeframe = timeframe,
+                isSelected = timeframe == selectedTimeframe,
+                onClick = { onTimeframeSelected(timeframe) }
+            )
+        }
+    }
+}
+
+@Composable
+fun TimeframeButton(
+    timeframe: Timeframe,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isSelected) Color(0xFF238636) else Color(0xFF21262D),
+            contentColor = if (isSelected) Color.White else Color(0xFF8B949E)
+        ),
+        modifier = Modifier.height(32.dp),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+    ) {
+        Text(
+            text = timeframe.displayName,
+            fontSize = 11.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+        )
     }
 }

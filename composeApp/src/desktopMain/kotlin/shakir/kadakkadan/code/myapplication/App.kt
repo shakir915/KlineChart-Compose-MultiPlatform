@@ -17,6 +17,7 @@ import shakir.kadakkadan.code.myapplication.model.TickerData
 import shakir.kadakkadan.code.myapplication.ui.CandlestickChart
 import shakir.kadakkadan.code.myapplication.ui.HomePage
 import shakir.kadakkadan.code.myapplication.ui.MarketCategory
+import shakir.kadakkadan.code.myapplication.ui.Timeframe
 
 @Composable
 @Preview
@@ -28,6 +29,7 @@ fun App() {
         var selectedSymbol by remember { mutableStateOf("BTCUSDT") }
         var cachedTickers by remember { mutableStateOf<List<TickerData>>(emptyList()) }
         var selectedCategory by remember { mutableStateOf(MarketCategory.VOLUME) }
+        var selectedTimeframe by remember { mutableStateOf(Timeframe.ONE_DAY) }
         
         when (currentPage) {
             null -> {
@@ -52,6 +54,10 @@ fun App() {
                 // Chart page - show candlestick chart
                 ChartPage(
                     symbol = selectedSymbol,
+                    selectedTimeframe = selectedTimeframe,
+                    onTimeframeChanged = { timeframe ->
+                        selectedTimeframe = timeframe
+                    },
                     onBackClicked = { currentPage = null }
                 )
             }
@@ -62,6 +68,8 @@ fun App() {
 @Composable
 fun ChartPage(
     symbol: String,
+    selectedTimeframe: Timeframe,
+    onTimeframeChanged: (Timeframe) -> Unit,
     onBackClicked: () -> Unit
 ) {
     var candles by remember { mutableStateOf<List<CandleData>>(emptyList()) }
@@ -83,7 +91,7 @@ fun ChartPage(
                     // Fetch 500 more candles ending before the oldest one
                     val historicalData = binanceApi.getBtcUsdtKlines(
                         symbol = symbol,
-                        interval = "1d",
+                        interval = selectedTimeframe.apiValue,
                         limit = 500,
                         endTime = oldestCandleTime - 1
                     )
@@ -103,10 +111,10 @@ fun ChartPage(
         }
     }
     
-    LaunchedEffect(symbol) {
+    LaunchedEffect(symbol, selectedTimeframe) {
         try {
-            println("🚀 Starting initial data load for $symbol...")
-            candles = binanceApi.getBtcUsdtKlines(symbol = symbol, interval = "1d")
+            println("🚀 Starting initial data load for $symbol (${selectedTimeframe.displayName})...")
+            candles = binanceApi.getBtcUsdtKlines(symbol = symbol, interval = selectedTimeframe.apiValue)
             println("✅ Initial data loaded successfully: ${candles.size} candles")
         } catch (e: Exception) {
             println("❌ Error fetching initial data: ${e.message}")
@@ -148,7 +156,7 @@ fun ChartPage(
                     coroutineScope.launch {
                         try {
                             println("🔄 Refreshing data...")
-                            candles = binanceApi.getBtcUsdtKlines(symbol = symbol, interval = "1d")
+                            candles = binanceApi.getBtcUsdtKlines(symbol = symbol, interval = selectedTimeframe.apiValue)
                             println("✅ Data refreshed successfully: ${candles.size} candles")
                         } catch (e: Exception) {
                             println("❌ Error refreshing data: ${e.message}")
@@ -166,6 +174,8 @@ fun ChartPage(
         CandlestickChart(
             candles = candles,
             symbol = symbol,
+            selectedTimeframe = selectedTimeframe,
+            onTimeframeChanged = onTimeframeChanged,
             onLoadMoreHistoricalData = loadMoreHistoricalData,
             modifier = Modifier.fillMaxSize()
         )
