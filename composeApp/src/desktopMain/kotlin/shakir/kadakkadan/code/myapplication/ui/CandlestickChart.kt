@@ -30,6 +30,7 @@ import shakir.kadakkadan.code.myapplication.model.CandleData
 @Composable
 fun CandlestickChart(
     candles: List<CandleData>,
+    symbol: String = "BTC/USDT",
     onLoadMoreHistoricalData: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -82,7 +83,7 @@ fun CandlestickChart(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "BTC/USDT",
+                    text = symbol,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White

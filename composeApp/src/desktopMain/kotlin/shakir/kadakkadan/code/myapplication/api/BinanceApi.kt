@@ -8,6 +8,7 @@ import io.ktor.client.request.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
 import shakir.kadakkadan.code.myapplication.model.CandleData
+import shakir.kadakkadan.code.myapplication.model.TickerData
 import kotlinx.serialization.json.JsonElement
 
 class BinanceApi {
@@ -27,11 +28,11 @@ class BinanceApi {
         }
     }
 
-    suspend fun getBtcUsdtKlines(interval: String = "1d", limit: Int = 1000, startTime: Long? = null, endTime: Long? = null): List<CandleData> {
-        println("🔄 Fetching candles: interval=$interval, limit=$limit, startTime=$startTime, endTime=$endTime")
+    suspend fun getBtcUsdtKlines(symbol: String = "BTCUSDT", interval: String = "1d", limit: Int = 1000, startTime: Long? = null, endTime: Long? = null): List<CandleData> {
+        println("🔄 Fetching candles: symbol=$symbol, interval=$interval, limit=$limit, startTime=$startTime, endTime=$endTime")
         
         val response = client.get("https://api.binance.com/api/v3/klines") {
-            parameter("symbol", "BTCUSDT")
+            parameter("symbol", symbol)
             parameter("interval", interval)
             parameter("limit", limit)
             startTime?.let { parameter("startTime", it) }
@@ -63,6 +64,20 @@ class BinanceApi {
                 ignore = item[11].toString().replace("\"", "")
             )
         }
+    }
+    
+    suspend fun get24hrTicker(): List<TickerData> {
+        println("🔄 Fetching 24hr ticker data...")
+        
+        val response = client.get("https://api.binance.com/api/v3/ticker/24hr")
+        val tickers: List<TickerData> = response.body()
+        
+        // Filter for USDT pairs only
+        val usdtPairs = tickers.filter { it.symbol.endsWith("USDT") }
+        
+        println("✅ Received ${tickers.size} tickers, filtered to ${usdtPairs.size} USDT pairs")
+        
+        return usdtPairs
     }
     
     fun close() {
