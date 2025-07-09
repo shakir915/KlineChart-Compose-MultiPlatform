@@ -46,6 +46,7 @@ fun CandlestickChart(
     var xOffset by remember { mutableStateOf(0f) }
     var yOffset by remember { mutableStateOf(0f) }
     var canvasSize by remember { mutableStateOf(Size.Zero) }
+    var isInitialPosition by remember { mutableStateOf(true) }
     
     val coroutineScope = rememberCoroutineScope()
     
@@ -100,7 +101,7 @@ fun CandlestickChart(
                 Button(
                     onClick = { 
                         val oldZoom = xZoom
-                        val newZoom = (xZoom + 0.2f).coerceIn(0.5f, 5f)
+                        val newZoom = (xZoom + 0.2f).coerceIn(0.03f, 5f)
                         // Adjust offset to keep zoom centered on screen center
                         if (canvasSize != Size.Zero) {
                             val screenCenter = canvasSize.width / 2f
@@ -108,6 +109,7 @@ fun CandlestickChart(
                             xOffset = screenCenter - (screenCenter - xOffset) * zoomRatio
                         }
                         xZoom = newZoom
+                        isInitialPosition = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF238636)),
                     modifier = Modifier.height(32.dp)
@@ -118,7 +120,7 @@ fun CandlestickChart(
                 Button(
                     onClick = { 
                         val oldZoom = xZoom
-                        val newZoom = (xZoom - 0.2f).coerceIn(0.5f, 5f)
+                        val newZoom = (xZoom - 0.2f).coerceIn(0.03f, 5f)
                         // Adjust offset to keep zoom centered on screen center
                         if (canvasSize != Size.Zero) {
                             val screenCenter = canvasSize.width / 2f
@@ -126,6 +128,7 @@ fun CandlestickChart(
                             xOffset = screenCenter - (screenCenter - xOffset) * zoomRatio
                         }
                         xZoom = newZoom
+                        isInitialPosition = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF238636)),
                     modifier = Modifier.height(32.dp)
@@ -157,6 +160,7 @@ fun CandlestickChart(
                         yZoom = 1f
                         xOffset = 0f
                         yOffset = 0f
+                        isInitialPosition = true
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF656d76)),
                     modifier = Modifier.height(32.dp)
@@ -192,6 +196,7 @@ fun CandlestickChart(
                                 // Handle infinite scrolling
                                 xOffset += dragAmount.x
                                 yOffset += dragAmount.y
+                                isInitialPosition = false
                             }
                         }
                         .pointerInput(Unit) {
@@ -211,7 +216,7 @@ fun CandlestickChart(
                                                 // Scroll down - zoom in X-axis
                                                 xZoom + 0.1f
                                             }
-                                            val clampedZoom = newZoom.coerceIn(0.5f, 5f)
+                                            val clampedZoom = newZoom.coerceIn(0.03f, 5f)
                                             
                                             // Adjust offset to keep zoom centered on screen center
                                             val screenCenter = size.width / 2f
@@ -219,6 +224,7 @@ fun CandlestickChart(
                                             xOffset = screenCenter - (screenCenter - xOffset) * zoomRatio
                                             
                                             xZoom = clampedZoom
+                                            isInitialPosition = false
                                             change.consume()
                                         }
                                     }
@@ -233,6 +239,14 @@ fun CandlestickChart(
                     ) {
                         // Update canvas size for button handlers
                         canvasSize = size
+                        
+                        // Calculate initial offset to show latest candles on right side with 5% margin
+                        if (candles.isNotEmpty() && isInitialPosition && canvasSize != Size.Zero) {
+                            val totalCandleWidth = candles.size * (candleWidth + candleSpacing)
+                            val marginWidth = canvasSize.width * 0.05f
+                            xOffset = canvasSize.width - totalCandleWidth - marginWidth
+                            isInitialPosition = false
+                        }
                         
                         drawCandlestickChart(
                             candles = candles,
