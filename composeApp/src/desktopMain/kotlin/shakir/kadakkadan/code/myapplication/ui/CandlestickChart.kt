@@ -307,7 +307,7 @@ fun CandlestickChart(
                             if (candleIndex >= 0 && candleIndex < candles.size) {
                                 val candle = candles[candleIndex]
                                 val date = Date(candle.openTime)
-                                val dateFormat = SimpleDateFormat("MM/dd HH:mm", Locale.getDefault())
+                                val dateFormat = SimpleDateFormat("MM/dd/yyyy HH:mm", Locale.getDefault())
                                 val timeText = dateFormat.format(date)
                                 
                                 // Price label on Y-axis

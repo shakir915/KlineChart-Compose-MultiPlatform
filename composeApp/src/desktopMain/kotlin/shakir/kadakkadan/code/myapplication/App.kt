@@ -13,8 +13,10 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 import kotlinx.coroutines.launch
 import shakir.kadakkadan.code.myapplication.api.BinanceApi
 import shakir.kadakkadan.code.myapplication.model.CandleData
+import shakir.kadakkadan.code.myapplication.model.TickerData
 import shakir.kadakkadan.code.myapplication.ui.CandlestickChart
 import shakir.kadakkadan.code.myapplication.ui.HomePage
+import shakir.kadakkadan.code.myapplication.ui.MarketCategory
 
 @Composable
 @Preview
@@ -24,11 +26,21 @@ fun App() {
     ) {
         var currentPage by remember { mutableStateOf<String?>(null) }
         var selectedSymbol by remember { mutableStateOf("BTCUSDT") }
+        var cachedTickers by remember { mutableStateOf<List<TickerData>>(emptyList()) }
+        var selectedCategory by remember { mutableStateOf(MarketCategory.VOLUME) }
         
         when (currentPage) {
             null -> {
                 // Home page - show trading pairs
                 HomePage(
+                    cachedTickers = cachedTickers,
+                    selectedCategory = selectedCategory,
+                    onTickersUpdated = { tickers ->
+                        cachedTickers = tickers
+                    },
+                    onCategoryChanged = { category ->
+                        selectedCategory = category
+                    },
                     onPairSelected = { symbol ->
                         selectedSymbol = symbol
                         currentPage = "chart"
