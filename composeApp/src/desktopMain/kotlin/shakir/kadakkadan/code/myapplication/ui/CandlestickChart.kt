@@ -205,11 +205,11 @@ fun CandlestickChart(
                                         if (abs(scroll.y) > 0.1f) {
                                             val oldZoom = xZoom
                                             val newZoom = if (scroll.y > 0) {
-                                                // Scroll up - zoom in X-axis
-                                                xZoom + 0.1f
-                                            } else {
-                                                // Scroll down - zoom out X-axis
+                                                // Scroll up - zoom out X-axis
                                                 xZoom - 0.1f
+                                            } else {
+                                                // Scroll down - zoom in X-axis
+                                                xZoom + 0.1f
                                             }
                                             val clampedZoom = newZoom.coerceIn(0.5f, 5f)
                                             
