@@ -26,14 +26,50 @@ fun App() {
         colorScheme = darkColorScheme()
     ) {
         var candles by remember { mutableStateOf<List<CandleData>>(emptyList()) }
+        var isLoadingHistorical by remember { mutableStateOf(false) }
         val coroutineScope = rememberCoroutineScope()
         val binanceApi = remember { BinanceApi() }
         
+        // Function to load more historical data
+        val loadMoreHistoricalData = {
+            if (!isLoadingHistorical && candles.isNotEmpty()) {
+                coroutineScope.launch {
+                    isLoadingHistorical = true
+                    try {
+                        // Get the timestamp of the oldest candle
+                        val oldestCandleTime = candles.first().openTime
+                        println("🔍 Loading historical data before timestamp: $oldestCandleTime")
+                        println("📈 Current dataset size: ${candles.size} candles")
+                        
+                        // Fetch 500 more candles ending before the oldest one
+                        val historicalData = binanceApi.getBtcUsdtKlines(
+                            interval = "1d",
+                            limit = 500,
+                            endTime = oldestCandleTime - 1
+                        )
+                        
+                        println("📊 Historical data loaded: ${historicalData.size} candles")
+                        
+                        // Prepend historical data to existing candles
+                        candles = historicalData + candles
+                        
+                        println("✅ Dataset updated: ${candles.size} total candles")
+                    } catch (e: Exception) {
+                        println("❌ Error loading historical data: ${e.message}")
+                    } finally {
+                        isLoadingHistorical = false
+                    }
+                }
+            }
+        }
+        
         LaunchedEffect(Unit) {
             try {
+                println("🚀 Starting initial data load...")
                 candles = binanceApi.getBtcUsdtKlines(interval = "1d")
+                println("✅ Initial data loaded successfully: ${candles.size} candles")
             } catch (e: Exception) {
-                println("Error fetching data: ${e.message}")
+                println("❌ Error fetching initial data: ${e.message}")
             }
         }
         
@@ -48,9 +84,11 @@ fun App() {
                 onClick = { 
                     coroutineScope.launch {
                         try {
+                            println("🔄 Refreshing data...")
                             candles = binanceApi.getBtcUsdtKlines(interval = "1d")
+                            println("✅ Data refreshed successfully: ${candles.size} candles")
                         } catch (e: Exception) {
-                            println("Error refreshing data: ${e.message}")
+                            println("❌ Error refreshing data: ${e.message}")
                         }
                     }
                 },
@@ -63,6 +101,7 @@ fun App() {
             
             CandlestickChart(
                 candles = candles,
+                onLoadMoreHistoricalData = loadMoreHistoricalData,
                 modifier = Modifier.fillMaxSize()
             )
         }

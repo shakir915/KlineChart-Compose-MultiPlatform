@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
@@ -17,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -28,6 +30,7 @@ import shakir.kadakkadan.code.myapplication.model.CandleData
 @Composable
 fun CandlestickChart(
     candles: List<CandleData>,
+    onLoadMoreHistoricalData: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     if (candles.isEmpty()) {
@@ -47,6 +50,7 @@ fun CandlestickChart(
     var yOffset by remember { mutableStateOf(0f) }
     var canvasSize by remember { mutableStateOf(Size.Zero) }
     var isInitialPosition by remember { mutableStateOf(true) }
+    var mousePosition by remember { mutableStateOf<Offset?>(null) }
     
     val coroutineScope = rememberCoroutineScope()
     
@@ -197,6 +201,15 @@ fun CandlestickChart(
                                 xOffset += dragAmount.x
                                 yOffset += dragAmount.y
                                 isInitialPosition = false
+                                
+                                // Check if user is scrolling near the left edge (backward in time)
+                                val totalWidth = candles.size * (candleWidth + candleSpacing)
+                                val leftBoundary = size.width - totalWidth
+                                val threshold = size.width * 0.3f
+                                
+                                if (xOffset > leftBoundary - threshold) {
+                                    onLoadMoreHistoricalData()
+                                }
                             }
                         }
                         .pointerInput(Unit) {
@@ -231,6 +244,15 @@ fun CandlestickChart(
                                 }
                             }
                         }
+                        .pointerInput(Unit) {
+                            // Track mouse position for crosshair
+                            awaitPointerEventScope {
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    mousePosition = event.changes.firstOrNull()?.position
+                                }
+                            }
+                        }
                 ) {
                     Canvas(
                         modifier = Modifier
@@ -261,6 +283,47 @@ fun CandlestickChart(
                             xZoom = xZoom,
                             yZoom = yZoom
                         )
+                        
+                        // Draw crosshair
+                        mousePosition?.let { pos ->
+                            drawCrosshair(pos)
+                        }
+                    }
+                    
+                    // Crosshair overlays
+                    mousePosition?.let { pos ->
+                        if (canvasSize != Size.Zero) {
+                            // Calculate price at mouse Y position
+                            val scaledHeight = canvasSize.height * yZoom
+                            val adjustedY = pos.y - yOffset
+                            val priceRatio = 1.0 - (adjustedY / scaledHeight).toDouble()
+                            val currentPrice = minPrice + (priceRatio * priceRange)
+                            
+                            // Calculate time at mouse X position
+                            val adjustedX = pos.x - xOffset
+                            val candleIndex = (adjustedX / (candleWidth + candleSpacing)).toInt()
+                            
+                            if (candleIndex >= 0 && candleIndex < candles.size) {
+                                val candle = candles[candleIndex]
+                                val date = Date(candle.openTime)
+                                val dateFormat = SimpleDateFormat("MM/dd HH:mm", Locale.getDefault())
+                                val timeText = dateFormat.format(date)
+                                
+                                // Price label on Y-axis
+                                CrosshairPriceLabel(
+                                    price = currentPrice,
+                                    yPosition = pos.y,
+                                    canvasWidth = canvasSize.width
+                                )
+                                
+                                // Time label on X-axis
+                                CrosshairTimeLabel(
+                                    time = timeText,
+                                    xPosition = pos.x,
+                                    canvasHeight = canvasSize.height
+                                )
+                            }
+                        }
                     }
                 }
                 
@@ -482,6 +545,73 @@ fun TimeBar(
                     modifier = Modifier.padding(horizontal = 4.dp)
                 )
             }
+        }
+    }
+}
+
+private fun DrawScope.drawCrosshair(mousePosition: Offset) {
+    // Draw crosshair lines
+    val crosshairColor = Color(0xFF8B949E).copy(alpha = 0.7f)
+    
+    // Horizontal line
+    drawLine(
+        color = crosshairColor,
+        start = Offset(0f, mousePosition.y),
+        end = Offset(size.width, mousePosition.y),
+        strokeWidth = 1.dp.toPx(),
+        pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(5f, 5f))
+    )
+    
+    // Vertical line
+    drawLine(
+        color = crosshairColor,
+        start = Offset(mousePosition.x, 0f),
+        end = Offset(mousePosition.x, size.height),
+        strokeWidth = 1.dp.toPx(),
+        pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(5f, 5f))
+    )
+}
+
+@Composable
+fun CrosshairPriceLabel(
+    price: Double,
+    yPosition: Float,
+    canvasWidth: Float
+) {
+    with(LocalDensity.current) {
+        Box(
+            modifier = Modifier
+                .offset(x = (canvasWidth - 60.dp.toPx()).toDp(), y = (yPosition - 10.dp.toPx()).toDp())
+                .background(Color(0xFF21262D), shape = RoundedCornerShape(4.dp))
+                .padding(horizontal = 6.dp, vertical = 2.dp)
+        ) {
+            Text(
+                text = String.format("%.2f", price),
+                color = Color.White,
+                fontSize = 11.sp
+            )
+        }
+    }
+}
+
+@Composable
+fun CrosshairTimeLabel(
+    time: String,
+    xPosition: Float,
+    canvasHeight: Float
+) {
+    with(LocalDensity.current) {
+        Box(
+            modifier = Modifier
+                .offset(x = (xPosition - 40.dp.toPx()).toDp(), y = (canvasHeight - 20.dp.toPx()).toDp())
+                .background(Color(0xFF21262D), shape = RoundedCornerShape(4.dp))
+                .padding(horizontal = 6.dp, vertical = 2.dp)
+        ) {
+            Text(
+                text = time,
+                color = Color.White,
+                fontSize = 11.sp
+            )
         }
     }
 }
