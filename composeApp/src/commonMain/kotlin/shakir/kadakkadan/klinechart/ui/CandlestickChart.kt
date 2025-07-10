@@ -3,6 +3,7 @@ package shakir.kadakkadan.klinechart.ui
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -283,23 +284,44 @@ fun CandlestickChart(
                         .weight(1f)
                         .background(Color(0xFF161B22)) // Slightly lighter dark background for chart area
                         .pointerInput(Unit) {
-                            detectDragGestures { change, dragAmount ->
-                                // Handle infinite scrolling
-                                xOffset += dragAmount.x
-                                yOffset += dragAmount.y
-                                isInitialPosition = false
-                                
-                                // Check if user is scrolling to the beginning of the chart (backward in time)
-                                // Only load if we're scrolling left and we're near the start of the data
-                                if (dragAmount.x > 0 && !isLoadingHistorical && !hasRequestedHistoricalData) {
-                                    val totalWidth = candles.size * (candleWidth + candleSpacing)
-                                    val scrolledFromStart = xOffset
-                                    val threshold = size.width * 0.2f // Load when 20% from start
+                            detectTransformGestures { centroid, pan, zoom, _ ->
+                                // Handle pinch zoom
+                                if (zoom != 1f) {
+                                    val oldXZoom = xZoom
+                                    val oldYZoom = yZoom
+                                    val newXZoom = (xZoom * zoom).coerceIn(0.03f, 5f)
+                                    val newYZoom = (yZoom * zoom).coerceIn(0.5f, 5f)
                                     
-                                    if (scrolledFromStart > -threshold) {
-                                        hasRequestedHistoricalData = true
-                                        isLoadingHistorical = true
-                                        onLoadMoreHistoricalData()
+                                    // Adjust offsets to zoom towards the pinch center
+                                    if (canvasSize != Size.Zero) {
+                                        val xZoomRatio = newXZoom / oldXZoom
+                                        val yZoomRatio = newYZoom / oldYZoom
+                                        
+                                        xOffset = centroid.x - (centroid.x - xOffset) * xZoomRatio
+                                        yOffset = centroid.y - (centroid.y - yOffset) * yZoomRatio
+                                    }
+                                    
+                                    xZoom = newXZoom
+                                    yZoom = newYZoom
+                                    isInitialPosition = false
+                                }
+                                
+                                // Handle pan/drag
+                                if (pan != Offset.Zero) {
+                                    xOffset += pan.x
+                                    yOffset += pan.y
+                                    isInitialPosition = false
+                                    
+                                    // Check if user is scrolling to the beginning of the chart (backward in time)
+                                    if (pan.x > 0 && !isLoadingHistorical && !hasRequestedHistoricalData) {
+                                        val scrolledFromStart = xOffset
+                                        val threshold = size.width * 0.2f // Load when 20% from start
+                                        
+                                        if (scrolledFromStart > -threshold) {
+                                            hasRequestedHistoricalData = true
+                                            isLoadingHistorical = true
+                                            onLoadMoreHistoricalData()
+                                        }
                                     }
                                 }
                             }
