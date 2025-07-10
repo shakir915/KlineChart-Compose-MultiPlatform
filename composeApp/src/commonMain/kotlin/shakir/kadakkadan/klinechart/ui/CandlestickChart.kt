@@ -4,6 +4,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -130,90 +132,103 @@ fun CandlestickChart(
             )
             
             // Zoom control buttons
-            Row(
+            LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp)
             ) {
                 // X-axis zoom controls
-                Button(
-                    onClick = { 
-                        val oldZoom = xZoom
-                        val newZoom = (xZoom + 0.2f).coerceIn(0.03f, 5f)
-                        // Adjust offset to keep zoom centered on screen center
-                        if (canvasSize != Size.Zero) {
-                            val screenCenter = canvasSize.width / 2f
-                            val zoomRatio = newZoom / oldZoom
-                            xOffset = screenCenter - (screenCenter - xOffset) * zoomRatio
-                        }
-                        xZoom = newZoom
-                        isInitialPosition = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF238636)),
-                    modifier = Modifier.height(32.dp)
-                ) {
-                    Text("X+", fontSize = 12.sp, color = Color.White)
+                item {
+                    Button(
+                        onClick = { 
+                            val oldZoom = xZoom
+                            val newZoom = (xZoom + 0.2f).coerceIn(0.03f, 5f)
+                            // Adjust offset to keep zoom centered on screen center
+                            if (canvasSize != Size.Zero) {
+                                val screenCenter = canvasSize.width / 2f
+                                val zoomRatio = newZoom / oldZoom
+                                xOffset = screenCenter - (screenCenter - xOffset) * zoomRatio
+                            }
+                            xZoom = newZoom
+                            isInitialPosition = false
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF238636)),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text("X+", fontSize = 12.sp, color = Color.White)
+                    }
                 }
                 
-                Button(
-                    onClick = { 
-                        val oldZoom = xZoom
-                        val newZoom = (xZoom - 0.2f).coerceIn(0.03f, 5f)
-                        // Adjust offset to keep zoom centered on screen center
-                        if (canvasSize != Size.Zero) {
-                            val screenCenter = canvasSize.width / 2f
-                            val zoomRatio = newZoom / oldZoom
-                            xOffset = screenCenter - (screenCenter - xOffset) * zoomRatio
-                        }
-                        xZoom = newZoom
-                        isInitialPosition = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF238636)),
-                    modifier = Modifier.height(32.dp)
-                ) {
-                    Text("X-", fontSize = 12.sp, color = Color.White)
+                item {
+                    Button(
+                        onClick = { 
+                            val oldZoom = xZoom
+                            val newZoom = (xZoom - 0.2f).coerceIn(0.03f, 5f)
+                            // Adjust offset to keep zoom centered on screen center
+                            if (canvasSize != Size.Zero) {
+                                val screenCenter = canvasSize.width / 2f
+                                val zoomRatio = newZoom / oldZoom
+                                xOffset = screenCenter - (screenCenter - xOffset) * zoomRatio
+                            }
+                            xZoom = newZoom
+                            isInitialPosition = false
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF238636)),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text("X-", fontSize = 12.sp, color = Color.White)
+                    }
                 }
                 
                 // Y-axis zoom controls
-                Button(
-                    onClick = { yZoom = (yZoom + 0.2f).coerceIn(0.5f, 5f) },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1f6feb)),
-                    modifier = Modifier.height(32.dp)
-                ) {
-                    Text("Y+", fontSize = 12.sp, color = Color.White)
+                item {
+                    Button(
+                        onClick = { yZoom = (yZoom + 0.2f).coerceIn(0.5f, 5f) },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1f6feb)),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text("Y+", fontSize = 12.sp, color = Color.White)
+                    }
                 }
                 
-                Button(
-                    onClick = { yZoom = (yZoom - 0.2f).coerceIn(0.5f, 5f) },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1f6feb)),
-                    modifier = Modifier.height(32.dp)
-                ) {
-                    Text("Y-", fontSize = 12.sp, color = Color.White)
+                item {
+                    Button(
+                        onClick = { yZoom = (yZoom - 0.2f).coerceIn(0.5f, 5f) },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1f6feb)),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text("Y-", fontSize = 12.sp, color = Color.White)
+                    }
                 }
                 
                 // Reset button
-                Button(
-                    onClick = { 
-                        xZoom = 1f
-                        yZoom = 1f
-                        xOffset = 0f
-                        yOffset = 0f
-                        isInitialPosition = true
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF656d76)),
-                    modifier = Modifier.height(32.dp)
-                ) {
-                    Text("Reset", fontSize = 12.sp, color = Color.White)
+                item {
+                    Button(
+                        onClick = { 
+                            xZoom = 1f
+                            yZoom = 1f
+                            xOffset = 0f
+                            yOffset = 0f
+                            isInitialPosition = true
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF656d76)),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text("Reset", fontSize = 12.sp, color = Color.White)
+                    }
                 }
                 
                 // Display current zoom levels
-                Text(
-                    text = "X:${(xZoom * 10).toInt() / 10.0} Y:${(yZoom * 10).toInt() / 10.0}",
-                    fontSize = 12.sp,
-                    color = Color(0xFF8B949E),
-                    modifier = Modifier.align(Alignment.CenterVertically)
-                )
+                item {
+                    Text(
+                        text = "X:${(xZoom * 10).toInt() / 10.0} Y:${(yZoom * 10).toInt() / 10.0}",
+                        fontSize = 12.sp,
+                        color = Color(0xFF8B949E),
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
             }
         }
         
@@ -654,18 +669,21 @@ fun TimeframeSelector(
     onTimeframeSelected: (Timeframe) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
+    LazyRow(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp)
     ) {
-        Text(
-            text = "Timeframe:",
-            fontSize = 12.sp,
-            color = Color(0xFF8B949E),
-            modifier = Modifier.align(Alignment.CenterVertically)
-        )
+        item {
+            Text(
+                text = "Timeframe:",
+                fontSize = 12.sp,
+                color = Color(0xFF8B949E),
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
         
-        Timeframe.values().forEach { timeframe ->
+        items(Timeframe.values()) { timeframe ->
             TimeframeButton(
                 timeframe = timeframe,
                 isSelected = timeframe == selectedTimeframe,
