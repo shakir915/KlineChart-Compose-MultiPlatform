@@ -228,7 +228,7 @@ fun SearchBar(
         onValueChange = onSearchQueryChange,
         placeholder = {
             Text(
-                text = "Search USDT pairs (e.g. BTC, ETH, ADA)",
+                text = "Search pairs (BTC, ETH, ADA)",
                 color = Color(0xFF8B949E)
             )
         },
@@ -333,7 +333,7 @@ fun CategoryTab(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 12.dp),
+                .padding(horizontal = 8.dp, vertical = 10.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(

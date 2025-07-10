@@ -79,6 +79,12 @@ fun CandlestickChart(
     var canvasSize by remember { mutableStateOf(Size.Zero) }
     var isInitialPosition by remember { mutableStateOf(true) }
     var mousePosition by remember { mutableStateOf<Offset?>(null) }
+    var previousCandleCount by remember { mutableStateOf(0) }
+    var isLoadingHistorical by remember { mutableStateOf(false) }
+    var hasRequestedHistoricalData by remember { mutableStateOf(false) }
+    var stableViewportMinPrice by remember { mutableStateOf(0.0) }
+    var stableViewportMaxPrice by remember { mutableStateOf(0.0) }
+    var useStableViewport by remember { mutableStateOf(false) }
     
     val coroutineScope = rememberCoroutineScope()
     
@@ -92,9 +98,40 @@ fun CandlestickChart(
     val totalWidth = candles.size * (candleWidth + candleSpacing)
     val baseChartHeight = 600f // Base height without zoom
     
-    val minPrice = candles.minOfOrNull { minOf(it.low, it.open, it.close, it.high) } ?: 0.0
-    val maxPrice = candles.maxOfOrNull { maxOf(it.high, it.open, it.close, it.low) } ?: 100.0
-    val priceRange = maxPrice - minPrice
+    // Use stable viewport when loading historical data, otherwise use full range
+    val displayMinPrice = if (useStableViewport) stableViewportMinPrice else candles.minOfOrNull { minOf(it.low, it.open, it.close, it.high) } ?: 0.0
+    val displayMaxPrice = if (useStableViewport) stableViewportMaxPrice else candles.maxOfOrNull { maxOf(it.high, it.open, it.close, it.low) } ?: 100.0
+    val priceRange = displayMaxPrice - displayMinPrice
+    
+    // Adjust position when new historical data is loaded
+    LaunchedEffect(candles.size) {
+        if (previousCandleCount > 0 && candles.size > previousCandleCount) {
+            // Historical data was added, adjust xOffset to maintain current candle position
+            val addedCandles = candles.size - previousCandleCount
+            val addedWidth = addedCandles * (candleWidth + candleSpacing)
+            xOffset += addedWidth
+            
+            // Reset loading flags
+            hasRequestedHistoricalData = false
+            isLoadingHistorical = false
+            useStableViewport = false
+        } else if (previousCandleCount == 0 && candles.isNotEmpty()) {
+            // Initial load - set up stable viewport
+            stableViewportMinPrice = candles.minOfOrNull { minOf(it.low, it.open, it.close, it.high) } ?: 0.0
+            stableViewportMaxPrice = candles.maxOfOrNull { maxOf(it.high, it.open, it.close, it.low) } ?: 100.0
+        }
+        previousCandleCount = candles.size
+    }
+    
+    // Activate stable viewport when requesting historical data
+    LaunchedEffect(hasRequestedHistoricalData) {
+        if (hasRequestedHistoricalData && !useStableViewport) {
+            // Lock current viewport before loading historical data
+            stableViewportMinPrice = displayMinPrice
+            stableViewportMaxPrice = displayMaxPrice
+            useStableViewport = true
+        }
+    }
     
     Column(
         modifier = modifier
@@ -252,13 +289,18 @@ fun CandlestickChart(
                                 yOffset += dragAmount.y
                                 isInitialPosition = false
                                 
-                                // Check if user is scrolling near the left edge (backward in time)
-                                val totalWidth = candles.size * (candleWidth + candleSpacing)
-                                val leftBoundary = size.width - totalWidth
-                                val threshold = size.width * 0.3f
-                                
-                                if (xOffset > leftBoundary - threshold) {
-                                    onLoadMoreHistoricalData()
+                                // Check if user is scrolling to the beginning of the chart (backward in time)
+                                // Only load if we're scrolling left and we're near the start of the data
+                                if (dragAmount.x > 0 && !isLoadingHistorical && !hasRequestedHistoricalData) {
+                                    val totalWidth = candles.size * (candleWidth + candleSpacing)
+                                    val scrolledFromStart = xOffset
+                                    val threshold = size.width * 0.2f // Load when 20% from start
+                                    
+                                    if (scrolledFromStart > -threshold) {
+                                        hasRequestedHistoricalData = true
+                                        isLoadingHistorical = true
+                                        onLoadMoreHistoricalData()
+                                    }
                                 }
                             }
                         }
@@ -313,10 +355,21 @@ fun CandlestickChart(
                         canvasSize = size
                         
                         // Calculate initial offset to show latest candles on right side with 5% margin
+                        // AND position the last candle vertically centered
                         if (candles.isNotEmpty() && isInitialPosition && canvasSize != Size.Zero) {
                             val totalCandleWidth = candles.size * (candleWidth + candleSpacing)
                             val marginWidth = canvasSize.width * 0.05f
                             xOffset = canvasSize.width - totalCandleWidth - marginWidth
+                            
+                            // Center the chart vertically based on the last candle's price
+                            val lastCandle = candles.last()
+                            val lastCandlePrice = (lastCandle.high + lastCandle.low) / 2.0
+                            val priceRatio = (lastCandlePrice - displayMinPrice) / priceRange
+                            val scaledHeight = canvasSize.height * yZoom
+                            val targetY = scaledHeight - (priceRatio * scaledHeight)
+                            val centerY = canvasSize.height / 2f
+                            yOffset = (centerY - targetY).toFloat()
+                            
                             isInitialPosition = false
                         }
                         
@@ -324,8 +377,8 @@ fun CandlestickChart(
                             candles = candles,
                             candleWidth = candleWidth,
                             candleSpacing = candleSpacing,
-                            minPrice = minPrice,
-                            maxPrice = maxPrice,
+                            minPrice = displayMinPrice,
+                            maxPrice = displayMaxPrice,
                             priceRange = priceRange,
                             chartHeight = baseChartHeight,
                             xOffset = xOffset,
@@ -347,7 +400,7 @@ fun CandlestickChart(
                             val scaledHeight = canvasSize.height * yZoom
                             val adjustedY = pos.y - yOffset
                             val priceRatio = 1.0 - (adjustedY / scaledHeight).toDouble()
-                            val currentPrice = minPrice + (priceRatio * priceRange)
+                            val currentPrice = displayMinPrice + (priceRatio * priceRange)
                             
                             // Calculate time at mouse X position
                             val adjustedX = pos.x - xOffset
@@ -391,8 +444,8 @@ fun CandlestickChart(
             
             // Price bar on right with drag zoom
             PriceBar(
-                minPrice = minPrice,
-                maxPrice = maxPrice,
+                minPrice = displayMinPrice,
+                maxPrice = displayMaxPrice,
                 chartHeight = baseChartHeight,
                 yOffset = yOffset,
                 yZoom = yZoom,
@@ -683,7 +736,7 @@ fun TimeframeSelector(
             )
         }
         
-        items(Timeframe.values()) { timeframe ->
+        items(Timeframe.entries) { timeframe ->
             TimeframeButton(
                 timeframe = timeframe,
                 isSelected = timeframe == selectedTimeframe,

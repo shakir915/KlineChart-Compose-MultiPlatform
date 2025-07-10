@@ -10,13 +10,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
@@ -37,6 +42,10 @@ import shakir.kadakkadan.klinechart.ui.CandlestickChart
 import shakir.kadakkadan.klinechart.ui.HomePage
 import shakir.kadakkadan.klinechart.ui.MarketCategory
 import shakir.kadakkadan.klinechart.ui.Timeframe
+
+// Platform-specific back button handling
+@Composable
+expect fun handleBackButton(onBackPressed: () -> Unit): () -> Unit
 
 @Composable
 @Preview
@@ -102,6 +111,12 @@ fun ChartPage(
     var isLoadingHistorical by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val binanceApi = remember { BinanceApi() }
+    
+    // Handle platform-specific back button
+    val cleanup = handleBackButton(onBackClicked)
+    DisposableEffect(onBackClicked) {
+        onDispose { cleanup() }
+    }
 
     // Function to load more historical data
     val loadMoreHistoricalData = {
@@ -120,8 +135,10 @@ fun ChartPage(
                         endTime = oldestCandleTime - 1
                     )
 
-                    // Prepend historical data to existing candles
-                    candles = historicalData + candles
+                    // Only prepend if we actually got new data
+                    if (historicalData.isNotEmpty()) {
+                        candles = historicalData + candles
+                    }
                 } catch (e: Exception) {
                     // Error will be logged by Ktor logging interceptor
                 } finally {
@@ -150,22 +167,46 @@ fun ChartPage(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Button(
+            // Back button with better alignment
+            IconButton(
                 onClick = onBackClicked,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF21262D)
-                )
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(
+                        Color(0xFF21262D),
+                        shape = RoundedCornerShape(8.dp)
+                    )
             ) {
-                Text("← Back", color = Color.White)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "←",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
             }
+            
+            Text(
+                text = "Back",
+                fontSize = 14.sp,
+                color = Color.White,
+                fontWeight = FontWeight.Medium
+            )
 
+            Spacer(modifier = Modifier.weight(1f))
+            
             Text(
                 text = symbol,
                 fontSize = 20.sp,
-                color = Color.White
+                color = Color.White,
+                fontWeight = FontWeight.Bold
             )
 
             Spacer(modifier = Modifier.weight(1f))
@@ -185,9 +226,10 @@ fun ChartPage(
                 },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF238636)
-                )
+                ),
+                shape = RoundedCornerShape(8.dp)
             ) {
-                Text("Refresh", color = Color.White)
+                Text("Refresh", color = Color.White, fontSize = 12.sp)
             }
         }
 
