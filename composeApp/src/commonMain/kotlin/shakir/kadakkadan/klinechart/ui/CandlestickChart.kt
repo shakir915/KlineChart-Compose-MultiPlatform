@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -86,6 +87,10 @@ fun CandlestickChart(
     var stableViewportMinPrice by remember { mutableStateOf(0.0) }
     var stableViewportMaxPrice by remember { mutableStateOf(0.0) }
     var useStableViewport by remember { mutableStateOf(false) }
+    
+    // Mobile crosshair state
+    var isCrosshairActive by remember { mutableStateOf(false) }
+    var crosshairPosition by remember { mutableStateOf<Offset?>(null) }
     
     val coroutineScope = rememberCoroutineScope()
     
@@ -285,29 +290,23 @@ fun CandlestickChart(
                         .background(Color(0xFF161B22)) // Slightly lighter dark background for chart area
                         .pointerInput(Unit) {
                             detectTransformGestures { centroid, pan, zoom, _ ->
-                                // Handle pinch zoom
+                                // Handle pinch zoom (X-axis only)
                                 if (zoom != 1f) {
                                     val oldXZoom = xZoom
-                                    val oldYZoom = yZoom
                                     val newXZoom = (xZoom * zoom).coerceIn(0.03f, 5f)
-                                    val newYZoom = (yZoom * zoom).coerceIn(0.5f, 5f)
                                     
-                                    // Adjust offsets to zoom towards the pinch center
+                                    // Adjust X offset to zoom towards the pinch center
                                     if (canvasSize != Size.Zero) {
                                         val xZoomRatio = newXZoom / oldXZoom
-                                        val yZoomRatio = newYZoom / oldYZoom
-                                        
                                         xOffset = centroid.x - (centroid.x - xOffset) * xZoomRatio
-                                        yOffset = centroid.y - (centroid.y - yOffset) * yZoomRatio
                                     }
                                     
                                     xZoom = newXZoom
-                                    yZoom = newYZoom
                                     isInitialPosition = false
                                 }
                                 
-                                // Handle pan/drag
-                                if (pan != Offset.Zero) {
+                                // Handle pan/drag only if crosshair is not active
+                                if (pan != Offset.Zero && !isCrosshairActive) {
                                     xOffset += pan.x
                                     yOffset += pan.y
                                     isInitialPosition = false
@@ -324,7 +323,34 @@ fun CandlestickChart(
                                         }
                                     }
                                 }
+                                
+                                // Handle crosshair dragging
+                                if (pan != Offset.Zero && isCrosshairActive) {
+                                    crosshairPosition = crosshairPosition?.let { 
+                                        Offset(
+                                            (it.x + pan.x).coerceIn(0f, size.width.toFloat()),
+                                            (it.y + pan.y).coerceIn(0f, size.height.toFloat())
+                                        )
+                                    }
+                                }
                             }
+                        }
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onLongPress = { offset ->
+                                    // Activate crosshair mode on long press
+                                    isCrosshairActive = true
+                                    crosshairPosition = offset
+                                },
+                                onTap = { 
+                                    // Deactivate crosshair mode on tap
+                                    if (isCrosshairActive) {
+                                        isCrosshairActive = false
+                                        crosshairPosition = null
+                                        mousePosition = null // Also clear mouse position
+                                    }
+                                }
+                            )
                         }
                         .pointerInput(Unit) {
                             // Handle scroll zoom for X-axis (touchpad scroll)
@@ -359,15 +385,25 @@ fun CandlestickChart(
                             }
                         }
                         .pointerInput(Unit) {
-                            // Track mouse position for crosshair
+                            // Track mouse position for crosshair (desktop only)
                             awaitPointerEventScope {
                                 while (true) {
                                     val event = awaitPointerEvent()
-                                    mousePosition = event.changes.firstOrNull()?.position
+                                    if (!isCrosshairActive) {
+                                        mousePosition = event.changes.firstOrNull()?.position
+                                    } else {
+                                        // Clear mouse position when crosshair is active
+                                        mousePosition = null
+                                    }
                                 }
                             }
                         }
                 ) {
+                    // Determine if crosshair should be visible
+                    // For mobile: only show when activated
+                    // For desktop: show when mouse is present (but mousePosition is cleared when activated)
+                    val shouldShowCrosshair = isCrosshairActive || mousePosition != null
+                    
                     Canvas(
                         modifier = Modifier
                             .fillMaxSize()
@@ -409,42 +445,49 @@ fun CandlestickChart(
                             yZoom = yZoom
                         )
                         
-                        // Draw crosshair
-                        mousePosition?.let { pos ->
-                            drawCrosshair(pos)
+                        // Draw crosshair - only show when should be visible
+                        if (shouldShowCrosshair) {
+                            val currentCrosshairPosition = if (isCrosshairActive) crosshairPosition else mousePosition
+                            currentCrosshairPosition?.let { pos ->
+                                drawCrosshair(pos)
+                            }
                         }
                     }
                     
-                    // Crosshair overlays
-                    mousePosition?.let { pos ->
-                        if (canvasSize != Size.Zero) {
-                            // Calculate price at mouse Y position
-                            val scaledHeight = canvasSize.height * yZoom
-                            val adjustedY = pos.y - yOffset
-                            val priceRatio = 1.0 - (adjustedY / scaledHeight).toDouble()
-                            val currentPrice = displayMinPrice + (priceRatio * priceRange)
-                            
-                            // Calculate time at mouse X position
-                            val adjustedX = pos.x - xOffset
-                            val candleIndex = (adjustedX / (candleWidth + candleSpacing)).toInt()
-                            
-                            if (candleIndex >= 0 && candleIndex < candles.size) {
-                                val candle = candles[candleIndex]
-                                val timeText = formatDateTime(candle.openTime)
+                    // Crosshair overlays - only show when crosshair should be visible
+                    if (shouldShowCrosshair) {
+                        val currentCrosshairPosition = if (isCrosshairActive) crosshairPosition else mousePosition
+                        currentCrosshairPosition?.let { pos ->
+                            if (canvasSize != Size.Zero) {
+                                // Calculate price at Y position
+                                val scaledHeight = canvasSize.height * yZoom
+                                val adjustedY = pos.y - yOffset
+                                val priceRatio = 1.0 - (adjustedY / scaledHeight).toDouble()
+                                val currentPrice = displayMinPrice + (priceRatio * priceRange)
                                 
-                                // Price label on Y-axis
+                                // Always show price label on Y-axis
                                 CrosshairPriceLabel(
                                     price = currentPrice,
                                     yPosition = pos.y,
                                     canvasWidth = canvasSize.width
                                 )
                                 
-                                // Time label on X-axis
-                                CrosshairTimeLabel(
-                                    time = timeText,
-                                    xPosition = pos.x,
-                                    canvasHeight = canvasSize.height
-                                )
+                                // Calculate time at X position
+                                val adjustedX = pos.x - xOffset
+                                val candleIndex = (adjustedX / (candleWidth + candleSpacing)).toInt()
+                                
+                                // Only show time label when hovering over a valid candle
+                                if (candleIndex >= 0 && candleIndex < candles.size) {
+                                    val candle = candles[candleIndex]
+                                    val timeText = formatDateTime(candle.openTime)
+                                    
+                                    // Time label on X-axis
+                                    CrosshairTimeLabel(
+                                        time = timeText,
+                                        xPosition = pos.x,
+                                        canvasHeight = canvasSize.height
+                                    )
+                                }
                             }
                         }
                     }
