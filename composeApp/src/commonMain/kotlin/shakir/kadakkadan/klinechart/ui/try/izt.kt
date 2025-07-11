@@ -1,4 +1,4 @@
-package shakir.kadakkadan.klinechart.ui
+package shakir.kadakkadan.klinechart.ui.`try`
 
 
 import androidx.compose.foundation.background
@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import shakir.kadakkadan.klinechart.model.CandleData
+import shakir.kadakkadan.klinechart.ui.Timeframe
 import kotlin.math.abs
 
 

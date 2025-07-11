@@ -445,6 +445,19 @@ fun CandlestickChart(
                             yZoom = yZoom
                         )
                         
+                        // Draw LTP (Last Traded Price) line
+                        if (candles.isNotEmpty()) {
+                            val lastPrice = candles.last().close
+                            drawLTPLine(
+                                price = lastPrice,
+                                minPrice = displayMinPrice,
+                                maxPrice = displayMaxPrice,
+                                priceRange = priceRange,
+                                yOffset = yOffset,
+                                yZoom = yZoom
+                            )
+                        }
+                        
                         // Draw crosshair - only show when should be visible
                         if (shouldShowCrosshair) {
                             val currentCrosshairPosition = if (isCrosshairActive) crosshairPosition else mousePosition
@@ -459,19 +472,6 @@ fun CandlestickChart(
                         val currentCrosshairPosition = if (isCrosshairActive) crosshairPosition else mousePosition
                         currentCrosshairPosition?.let { pos ->
                             if (canvasSize != Size.Zero) {
-                                // Calculate price at Y position
-                                val scaledHeight = canvasSize.height * yZoom
-                                val adjustedY = pos.y - yOffset
-                                val priceRatio = 1.0 - (adjustedY / scaledHeight).toDouble()
-                                val currentPrice = displayMinPrice + (priceRatio * priceRange)
-                                
-                                // Always show price label on Y-axis
-                                CrosshairPriceLabel(
-                                    price = currentPrice,
-                                    yPosition = pos.y,
-                                    canvasWidth = canvasSize.width
-                                )
-                                
                                 // Calculate time at X position
                                 val adjustedX = pos.x - xOffset
                                 val candleIndex = (adjustedX / (candleWidth + candleSpacing)).toInt()
@@ -508,20 +508,52 @@ fun CandlestickChart(
             }
             
             // Price bar on right with drag zoom
-            AlternativePriceBar(
-                minPrice = displayMinPrice,
-                maxPrice = displayMaxPrice,
-                chartHeight = baseChartHeight,
-                yOffset = yOffset,
-                yZoom = yZoom,
-                isPriceBarClicked = false, // Not used anymore
-                onPriceBarClick = { }, // Not used anymore
-                onYZoomChange = { newZoom ->  yZoom = newZoom.coerceIn(0.1f, 5f) },
-                modifier = Modifier
-                    .width(60.dp)
-                    .fillMaxHeight()
-                    .background(Color(0xFF21262D))
-            )
+            Box {
+                AlternativePriceBar(
+                    minPrice = displayMinPrice,
+                    maxPrice = displayMaxPrice,
+                    chartHeight = baseChartHeight,
+                    yOffset = yOffset,
+                    yZoom = yZoom,
+                    isPriceBarClicked = false, // Not used anymore
+                    onPriceBarClick = { }, // Not used anymore
+                    onYZoomChange = { newZoom ->  yZoom = newZoom.coerceIn(0.1f, 5f) },
+                    modifier = Modifier
+                        .width(60.dp)
+                        .fillMaxHeight()
+                        .background(Color(0xFF21262D))
+                )
+                
+                // LTP Price Label on Price Bar
+                if (candles.isNotEmpty() && canvasSize != Size.Zero) {
+                    val lastPrice = candles.last().close
+                    val scaledHeight = canvasSize.height * yZoom
+                    val priceRatio = (lastPrice - displayMinPrice) / priceRange
+                    val ltpY = (scaledHeight - (priceRatio * scaledHeight)).toFloat() + yOffset
+                    
+                    LTPPriceLabel(
+                        price = lastPrice,
+                        yPosition = ltpY
+                    )
+                }
+                
+                // Crosshair Price Label on Price Bar (similar to LTP)
+                val shouldShowCrosshair = isCrosshairActive || mousePosition != null
+                if (shouldShowCrosshair && canvasSize != Size.Zero) {
+                    val currentCrosshairPosition = if (isCrosshairActive) crosshairPosition else mousePosition
+                    currentCrosshairPosition?.let { pos ->
+                        val scaledHeight = canvasSize.height * yZoom
+                        val adjustedY = pos.y - yOffset
+                        val priceRatio = 1.0 - (adjustedY / scaledHeight).toDouble()
+                        val currentPrice = displayMinPrice + (priceRatio * priceRange)
+                        
+                        CrosshairPriceBarLabel(
+                            price = currentPrice,
+                            yPosition = pos.y
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -745,11 +777,37 @@ private fun DrawScope.drawCrosshair(mousePosition: Offset) {
     )
 }
 
+private fun DrawScope.drawLTPLine(
+    price: Double,
+    minPrice: Double,
+    maxPrice: Double,
+    priceRange: Double,
+    yOffset: Float,
+    yZoom: Float
+) {
+    // Calculate Y position for LTP line
+    val scaledHeight = size.height * yZoom
+    val priceRatio = (price - minPrice) / priceRange
+    val ltpY = (scaledHeight - (priceRatio * scaledHeight)).toFloat() + yOffset
+    
+    // Draw LTP line in yellow
+    val ltpColor = Color(0xFFFFD700) // Gold/Yellow color
+    
+    drawLine(
+        color = ltpColor,
+        start = Offset(0f, ltpY),
+        end = Offset(size.width, ltpY),
+        strokeWidth = 1.dp.toPx(), // Same thickness as crosshair
+        pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 5f)) // Same dash pattern as crosshair
+    )
+}
+
 @Composable
 fun CrosshairPriceLabel(
     price: Double,
     yPosition: Float,
-    canvasWidth: Float
+    canvasWidth: Float,
+    isInsidePriceBar: Boolean = false
 ) {
     with(LocalDensity.current) {
         Box(
@@ -839,5 +897,53 @@ fun TimeframeButton(
             fontSize = 11.sp,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
         )
+    }
+}
+
+@Composable
+fun LTPPriceLabel(
+    price: Double,
+    yPosition: Float
+) {
+    with(LocalDensity.current) {
+        Box(
+            modifier = Modifier
+                .offset(x = 5.dp, y = (yPosition - 8.dp.toPx()).toDp())
+                .background(
+                    Color(0xFFFFD700).copy(alpha = 0.9f), // Gold/Yellow background
+                    shape = RoundedCornerShape(3.dp)
+                )
+                .padding(horizontal = 4.dp, vertical = 1.dp) // Reduced padding
+        ) {
+            Text(
+                text = "${(price * 100).toInt() / 100.0}",
+                color = Color.Black, // Black text on yellow background
+                fontSize = 9.sp // Reduced font size
+            )
+        }
+    }
+}
+
+@Composable
+fun CrosshairPriceBarLabel(
+    price: Double,
+    yPosition: Float
+) {
+    with(LocalDensity.current) {
+        Box(
+            modifier = Modifier
+                .offset(x = 5.dp, y = (yPosition - 8.dp.toPx()).toDp())
+                .background(
+                    Color(0xFF21262D), // Same color as original crosshair
+                    shape = RoundedCornerShape(3.dp)
+                )
+                .padding(horizontal = 4.dp, vertical = 1.dp) // Reduced padding
+        ) {
+            Text(
+                text = "${(price * 100).toInt() / 100.0}",
+                color = Color.White,
+                fontSize = 9.sp // Reduced font size
+            )
+        }
     }
 }
