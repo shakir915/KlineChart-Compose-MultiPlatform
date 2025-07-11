@@ -10,7 +10,10 @@
       "Bash(git push:*)",
       "Bash(gh repo rename:*)",
       "Bash(git remote set-url:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(echo:*)",
+      "Bash(printf '\\a')",
+      "Bash(say:*)"
     ],
     "deny": []
   }

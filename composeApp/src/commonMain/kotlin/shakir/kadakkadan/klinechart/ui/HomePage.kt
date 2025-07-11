@@ -130,7 +130,13 @@ fun HomePage(
         // Search bar
         SearchBar(
             searchQuery = searchQuery,
-            onSearchQueryChange = { searchQuery = it },
+            onSearchQueryChange = { query ->
+                searchQuery = query
+                // Auto-switch to ALL tab when user starts typing
+                if (query.isNotBlank() && selectedCategory != MarketCategory.ALL) {
+                    onCategoryChanged(MarketCategory.ALL)
+                }
+            },
             onSearchSubmit = { query ->
                 // Navigate directly to chart if search query looks like a valid symbol
                 val symbol = query.uppercase().let { 
