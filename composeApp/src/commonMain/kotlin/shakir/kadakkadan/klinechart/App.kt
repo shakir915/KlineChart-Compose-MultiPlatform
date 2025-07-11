@@ -40,6 +40,7 @@ import shakir.kadakkadan.klinechart.model.CandleData
 import shakir.kadakkadan.klinechart.model.TickerData
 import shakir.kadakkadan.klinechart.ui.CandlestickChart
 import shakir.kadakkadan.klinechart.ui.HomePage
+import shakir.kadakkadan.klinechart.ui.IsolatedZoomTest
 import shakir.kadakkadan.klinechart.ui.MarketCategory
 import shakir.kadakkadan.klinechart.ui.Timeframe
 
@@ -233,6 +234,8 @@ fun ChartPage(
             }
         }
 
+
+//        IsolatedZoomTest()
         CandlestickChart(
             candles = candles,
             symbol = symbol,

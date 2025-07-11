@@ -228,7 +228,7 @@ fun CandlestickChart(
                 // Y-axis zoom controls
                 item {
                     Button(
-                        onClick = { yZoom = (yZoom + 0.2f).coerceIn(0.5f, 5f) },
+                        onClick = { yZoom = (yZoom + 0.2f).coerceIn(0.1f, 5f) },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1f6feb)),
                         modifier = Modifier.height(32.dp)
                     ) {
@@ -238,7 +238,7 @@ fun CandlestickChart(
                 
                 item {
                     Button(
-                        onClick = { yZoom = (yZoom - 0.2f).coerceIn(0.5f, 5f) },
+                        onClick = { yZoom = (yZoom - 0.2f).coerceIn(0.1f, 5f) },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1f6feb)),
                         modifier = Modifier.height(32.dp)
                     ) {
@@ -508,7 +508,7 @@ fun CandlestickChart(
             }
             
             // Price bar on right with drag zoom
-            PriceBar(
+            AlternativePriceBar(
                 minPrice = displayMinPrice,
                 maxPrice = displayMaxPrice,
                 chartHeight = baseChartHeight,
@@ -516,7 +516,7 @@ fun CandlestickChart(
                 yZoom = yZoom,
                 isPriceBarClicked = false, // Not used anymore
                 onPriceBarClick = { }, // Not used anymore
-                onYZoomChange = { newZoom -> yZoom = newZoom },
+                onYZoomChange = { newZoom ->  yZoom = newZoom.coerceIn(0.1f, 5f) },
                 modifier = Modifier
                     .width(60.dp)
                     .fillMaxHeight()
@@ -597,8 +597,15 @@ private fun DrawScope.drawCandlestickChart(
     }
 }
 
+
+
+
+
+
+
+
 @Composable
-fun PriceBar(
+fun AlternativePriceBar(
     minPrice: Double,
     maxPrice: Double,
     chartHeight: Float,
@@ -609,40 +616,40 @@ fun PriceBar(
     onYZoomChange: (Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Create a reference to the current zoom that updates
+    val currentZoom by rememberUpdatedState(yZoom)
+
     val priceRange = maxPrice - minPrice
-    val priceSteps = 12 // More price levels for better granularity
-    
+    val priceSteps = 12
+
     // Calculate visible price range based on zoom and offset
     val effectiveHeight = chartHeight * yZoom
     val visibleHeight = 400f
     val visibleTopRatio = (-yOffset) / maxOf(effectiveHeight - visibleHeight, 1f)
     val visibleBottomRatio = (visibleHeight - yOffset) / effectiveHeight
-    
+
     val visibleMinPrice = minPrice + (priceRange * (1 - visibleBottomRatio))
     val visibleMaxPrice = minPrice + (priceRange * (1 - visibleTopRatio))
     val visiblePriceRange = visibleMaxPrice - visibleMinPrice
-    
+
     Box(
         modifier = modifier
             .pointerInput(Unit) {
                 detectDragGestures { change, dragAmount ->
-                    // Continuous Y-axis zoom while dragging
                     val dragY = dragAmount.y
-                    println("Price bar drag: dragY = $dragY, current yZoom = $yZoom")
-                    
-                    // Apply zoom change based on drag amount
-                    if (abs(dragY) > 0.1f) {
+                    println("Alternative PriceBar drag: dragY=$dragY, currentZoom=${currentZoom}")
+
+                    // Apply zoom immediately on any significant drag
+                    if (abs(dragY) > 2f) {
                         val zoomDelta = if (dragY < 0) {
-                            // Drag up - zoom in Y-axis
-                            0.02f
+                            0.05f // Zoom in (drag up)
                         } else {
-                            // Drag down - zoom out Y-axis
-                            -0.02f
+                            -0.05f // Zoom out (drag down)
                         }
-                        val newZoom = yZoom + zoomDelta
-                        val clampedZoom = newZoom.coerceIn(0.5f, 5f)
-                        println("Setting new Y zoom: $clampedZoom")
-                        onYZoomChange(clampedZoom)
+
+                        val newZoom = currentZoom + zoomDelta
+                        println("Alternative PriceBar calling onYZoomChange with: $newZoom")
+                        onYZoomChange(newZoom)
                     }
                 }
             }
@@ -665,6 +672,7 @@ fun PriceBar(
         }
     }
 }
+
 
 @Composable
 fun TimeBar(
