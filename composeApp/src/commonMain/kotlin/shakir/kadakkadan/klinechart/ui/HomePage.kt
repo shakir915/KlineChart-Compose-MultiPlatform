@@ -196,13 +196,24 @@ fun HomePage(
                         .sortedByDescending { it.quoteVolume.toDoubleOrNull() ?: 0.0 }
                 }
                 
-                // Apply search filter
+                // Apply search filter with priority: starts with first, then contains
                 val filteredTickers = if (searchQuery.isBlank()) {
                     categoryFilteredTickers
                 } else {
-                    categoryFilteredTickers.filter { 
-                        it.symbol.contains(searchQuery.uppercase(), ignoreCase = true)
+                    val upperSearchQuery = searchQuery.uppercase()
+                    val startsWith = mutableSetOf<TickerData>()
+                    val contains = mutableSetOf<TickerData>()
+                    
+                    categoryFilteredTickers.forEach { ticker ->
+                        if (ticker.symbol.startsWith(upperSearchQuery, ignoreCase = true)) {
+                            startsWith.add(ticker)
+                        } else if (ticker.symbol.contains(upperSearchQuery, ignoreCase = true)) {
+                            contains.add(ticker)
+                        }
                     }
+                    
+                    // Combine: starts with first, then contains, no duplicates
+                    startsWith.toList() + contains.toList()
                 }
                 
                 // Trading pairs list
