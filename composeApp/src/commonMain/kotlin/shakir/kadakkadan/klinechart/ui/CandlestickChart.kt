@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -144,136 +145,42 @@ fun CandlestickChart(
             .fillMaxSize()
             .background(Color(0xFF0D1117)) // Dark background like TradingView
     ) {
-        // Price info header and zoom controls
-        Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = symbol,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Text(
-                    text = "Price: $${candles.lastOrNull()?.close ?: "0.00"}",
-                    fontSize = 14.sp,
-                    color = Color(0xFF8B949E) // Muted gray for secondary text
-                )
-            }
-            
-            // Timeframe selector
-            TimeframeSelector(
-                selectedTimeframe = selectedTimeframe,
-                onTimeframeSelected = onTimeframeChanged,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+        // Top bar with symbol and reset button
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = symbol,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
             )
             
-            // Zoom control buttons
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp)
+            // Reset zoom button (icon only)
+            Button(
+                onClick = { 
+                    xZoom = 1f
+                    yZoom = 1f
+                    xOffset = 0f
+                    yOffset = 0f
+                    isInitialPosition = true
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF656d76)),
+                modifier = Modifier.size(32.dp),
+                contentPadding = PaddingValues(0.dp)
             ) {
-                // X-axis zoom controls
-                item {
-                    Button(
-                        onClick = { 
-                            val oldZoom = xZoom
-                            val newZoom = (xZoom + 0.2f).coerceIn(0.03f, 5f)
-                            // Adjust offset to keep zoom centered on screen center
-                            if (canvasSize != Size.Zero) {
-                                val screenCenter = canvasSize.width / 2f
-                                val zoomRatio = newZoom / oldZoom
-                                xOffset = screenCenter - (screenCenter - xOffset) * zoomRatio
-                            }
-                            xZoom = newZoom
-                            isInitialPosition = false
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF238636)),
-                        modifier = Modifier.height(32.dp)
-                    ) {
-                        Text("X+", fontSize = 12.sp, color = Color.White)
-                    }
-                }
-                
-                item {
-                    Button(
-                        onClick = { 
-                            val oldZoom = xZoom
-                            val newZoom = (xZoom - 0.2f).coerceIn(0.03f, 5f)
-                            // Adjust offset to keep zoom centered on screen center
-                            if (canvasSize != Size.Zero) {
-                                val screenCenter = canvasSize.width / 2f
-                                val zoomRatio = newZoom / oldZoom
-                                xOffset = screenCenter - (screenCenter - xOffset) * zoomRatio
-                            }
-                            xZoom = newZoom
-                            isInitialPosition = false
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF238636)),
-                        modifier = Modifier.height(32.dp)
-                    ) {
-                        Text("X-", fontSize = 12.sp, color = Color.White)
-                    }
-                }
-                
-                // Y-axis zoom controls
-                item {
-                    Button(
-                        onClick = { yZoom = (yZoom + 0.2f).coerceIn(0.1f, 5f) },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1f6feb)),
-                        modifier = Modifier.height(32.dp)
-                    ) {
-                        Text("Y+", fontSize = 12.sp, color = Color.White)
-                    }
-                }
-                
-                item {
-                    Button(
-                        onClick = { yZoom = (yZoom - 0.2f).coerceIn(0.1f, 5f) },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1f6feb)),
-                        modifier = Modifier.height(32.dp)
-                    ) {
-                        Text("Y-", fontSize = 12.sp, color = Color.White)
-                    }
-                }
-                
-                // Reset button
-                item {
-                    Button(
-                        onClick = { 
-                            xZoom = 1f
-                            yZoom = 1f
-                            xOffset = 0f
-                            yOffset = 0f
-                            isInitialPosition = true
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF656d76)),
-                        modifier = Modifier.height(32.dp)
-                    ) {
-                        Text("Reset", fontSize = 12.sp, color = Color.White)
-                    }
-                }
-                
-                // Display current zoom levels
-                item {
-                    Text(
-                        text = "X:${(xZoom * 10).toInt() / 10.0} Y:${(yZoom * 10).toInt() / 10.0}",
-                        fontSize = 12.sp,
-                        color = Color(0xFF8B949E),
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
+                Text(
+                    text = "⌂", // Zoom/Reset icon
+                    fontSize = 16.sp,
+                    color = Color.White
+                )
             }
         }
+            
         
         // Chart area with price and time bars
         Row(
@@ -730,8 +637,7 @@ fun TimeBar(
     Box(modifier = modifier) {
         Row(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 8.dp),
+                .fillMaxSize(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             repeat(timeSteps) { index ->
@@ -746,8 +652,7 @@ fun TimeBar(
                 Text(
                     text = formatDate(candle.openTime),
                     color = Color(0xFF8B949E),
-                    fontSize = 11.sp,
-                    modifier = Modifier.padding(horizontal = 4.dp)
+                    fontSize = 11.sp
                 )
             }
         }

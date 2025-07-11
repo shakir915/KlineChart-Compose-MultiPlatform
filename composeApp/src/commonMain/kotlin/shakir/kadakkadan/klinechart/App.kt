@@ -2,6 +2,7 @@ package shakir.kadakkadan.klinechart
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,6 +16,8 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -162,7 +165,9 @@ fun ChartPage(
             .fillMaxSize()
             .background(Color(0xFF0D1117))
     ) {
-        // Header with back button
+        // Header with back button, timeframe dropdown, and refresh
+        var showTimeframeDropdown by remember { mutableStateOf(false) }
+        
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -170,7 +175,7 @@ fun ChartPage(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Back button with better alignment
+            // Back button (icon only)
             IconButton(
                 onClick = onBackClicked,
                 modifier = Modifier
@@ -180,38 +185,62 @@ fun ChartPage(
                         shape = RoundedCornerShape(8.dp)
                     )
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = "←",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
+                Text(
+                    text = "←",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
             }
             
-            Text(
-                text = "Back",
-                fontSize = 14.sp,
-                color = Color.White,
-                fontWeight = FontWeight.Medium
-            )
+            // Timeframe dropdown button
+            Box {
+                Button(
+                    onClick = { showTimeframeDropdown = true },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF21262D)
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = selectedTimeframe.displayName,
+                        color = Color.White,
+                        fontSize = 12.sp
+                    )
+                    Text(
+                        text = " ▼",
+                        color = Color.White,
+                        fontSize = 10.sp
+                    )
+                }
+                
+                // Timeframe dropdown menu
+                DropdownMenu(
+                    expanded = showTimeframeDropdown,
+                    onDismissRequest = { showTimeframeDropdown = false }
+                ) {
+                    Timeframe.entries.forEach { timeframe ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = timeframe.displayName,
+                                    color = Color.White
+                                )
+                            },
+                            onClick = {
+                                onTimeframeChanged(timeframe)
+                                showTimeframeDropdown = false
+                            },
+                            modifier = Modifier.background(Color(0xFF21262D))
+                        )
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.weight(1f))
-            
-            Text(
-                text = symbol,
-                fontSize = 20.sp,
-                color = Color.White,
-                fontWeight = FontWeight.Bold
-            )
 
-            Spacer(modifier = Modifier.weight(1f))
-
-            Button(
+            // Refresh button (icon only)
+            IconButton(
                 onClick = {
                     coroutineScope.launch {
                         try {
@@ -224,12 +253,19 @@ fun ChartPage(
                         }
                     }
                 },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF238636)
-                ),
-                shape = RoundedCornerShape(8.dp)
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(
+                        Color(0xFF238636),
+                        shape = RoundedCornerShape(8.dp)
+                    )
             ) {
-                Text("Refresh", color = Color.White, fontSize = 12.sp)
+                Text(
+                    text = "↻",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
             }
         }
 

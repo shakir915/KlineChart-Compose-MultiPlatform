@@ -13,7 +13,9 @@
       "Bash(git checkout:*)",
       "Bash(echo:*)",
       "Bash(printf '\\a')",
-      "Bash(say:*)"
+      "Bash(say:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)"
     ],
     "deny": []
   }
