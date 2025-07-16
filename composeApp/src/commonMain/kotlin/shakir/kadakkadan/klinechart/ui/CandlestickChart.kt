@@ -11,6 +11,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -62,6 +64,7 @@ fun CandlestickChart(
     selectedTimeframe: Timeframe = Timeframe.ONE_DAY,
     onTimeframeChanged: (Timeframe) -> Unit = {},
     onLoadMoreHistoricalData: () -> Unit = {},
+    onLoadPreviousPageData: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     if (candles.isEmpty()) {
@@ -93,6 +96,9 @@ fun CandlestickChart(
     var isCrosshairActive by remember { mutableStateOf(false) }
     var crosshairPosition by remember { mutableStateOf<Offset?>(null) }
     
+    // Menu state
+    var isMenuExpanded by remember { mutableStateOf(false) }
+    
     val coroutineScope = rememberCoroutineScope()
     
     // Base dimensions
@@ -113,15 +119,15 @@ fun CandlestickChart(
     // Adjust position when new historical data is loaded
     LaunchedEffect(candles.size) {
         if (previousCandleCount > 0 && candles.size > previousCandleCount) {
-            // Historical data was added, adjust xOffset to maintain current candle position
+            // Historical data was added, adjust xOffset to maintain current visible candles
             val addedCandles = candles.size - previousCandleCount
             val addedWidth = addedCandles * (candleWidth + candleSpacing)
             xOffset += addedWidth
             
-            // Reset loading flags
+            // Reset loading flags but keep stable viewport until user manually scrolls
             hasRequestedHistoricalData = false
             isLoadingHistorical = false
-            useStableViewport = false
+            // Don't reset useStableViewport - keep current price range visible
         } else if (previousCandleCount == 0 && candles.isNotEmpty()) {
             // Initial load - set up stable viewport
             stableViewportMinPrice = candles.minOfOrNull { minOf(it.low, it.open, it.close, it.high) } ?: 0.0
@@ -160,24 +166,52 @@ fun CandlestickChart(
                 color = Color.White
             )
             
-            // Reset zoom button (icon only)
-            Button(
-                onClick = { 
-                    xZoom = 1f
-                    yZoom = 1f
-                    xOffset = 0f
-                    yOffset = 0f
-                    isInitialPosition = true
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF656d76)),
-                modifier = Modifier.size(32.dp),
-                contentPadding = PaddingValues(0.dp)
-            ) {
-                Text(
-                    text = "⌂", // Zoom/Reset icon
-                    fontSize = 16.sp,
-                    color = Color.White
-                )
+            // Hamburger menu button
+            Box {
+                Button(
+                    onClick = { isMenuExpanded = !isMenuExpanded },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF656d76)),
+                    modifier = Modifier.size(32.dp),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Text(
+                        text = "☰", // Hamburger icon
+                        fontSize = 16.sp,
+                        color = Color.White
+                    )
+                }
+                
+                // Dropdown menu
+                DropdownMenu(
+                    expanded = isMenuExpanded,
+                    onDismissRequest = { isMenuExpanded = false },
+                    modifier = Modifier.background(Color(0xFF21262D))
+                ) {
+                    DropdownMenuItem(
+                        text = { 
+                            Text("Reset Zoom", color = Color.White, fontSize = 14.sp) 
+                        },
+                        onClick = {
+                            xZoom = 1f
+                            yZoom = 1f
+                            xOffset = 0f
+                            yOffset = 0f
+                            isInitialPosition = true
+                            isMenuExpanded = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { 
+                            Text("Load Previous Data", color = Color.White, fontSize = 14.sp) 
+                        },
+                        onClick = {
+                            hasRequestedHistoricalData = true
+                            isLoadingHistorical = true
+                            onLoadMoreHistoricalData()
+                            isMenuExpanded = false
+                        }
+                    )
+                }
             }
         }
             
@@ -200,7 +234,7 @@ fun CandlestickChart(
                                 // Handle pinch zoom (X-axis only)
                                 if (zoom != 1f) {
                                     val oldXZoom = xZoom
-                                    val newXZoom = (xZoom * zoom).coerceIn(0.03f, 5f)
+                                    val newXZoom = (xZoom * zoom).coerceIn(0.001f, 5f)
                                     
                                     // Adjust X offset to zoom towards the pinch center
                                     if (canvasSize != Size.Zero) {
@@ -210,6 +244,11 @@ fun CandlestickChart(
                                     
                                     xZoom = newXZoom
                                     isInitialPosition = false
+                                    
+                                    // Reset stable viewport when user manually zooms
+                                    if (useStableViewport) {
+                                        useStableViewport = false
+                                    }
                                 }
                                 
                                 // Handle pan/drag only if crosshair is not active
@@ -217,6 +256,11 @@ fun CandlestickChart(
                                     xOffset += pan.x
                                     yOffset += pan.y
                                     isInitialPosition = false
+                                    
+                                    // Reset stable viewport when user manually scrolls (after data loading)
+                                    if (useStableViewport && abs(pan.x) > 10f) {
+                                        useStableViewport = false
+                                    }
                                     
                                     // Check if user is scrolling to the beginning of the chart (backward in time)
                                     if (pan.x > 0 && !isLoadingHistorical && !hasRequestedHistoricalData) {
@@ -269,14 +313,17 @@ fun CandlestickChart(
                                         // Check if this is a scroll event (not just pointer movement)
                                         if (abs(scroll.y) > 0.1f) {
                                             val oldZoom = xZoom
+                                            // Dynamic zoom increment using mathematical function for smoothness
+                                            // Uses logarithmic scaling: smaller increments at low zoom, larger at high zoom
+                                            val zoomIncrement = xZoom * (0.08f + 0.15f * kotlin.math.ln(xZoom + 1f))
                                             val newZoom = if (scroll.y > 0) {
                                                 // Scroll up - zoom out X-axis
-                                                xZoom - 0.1f
+                                                xZoom - zoomIncrement
                                             } else {
                                                 // Scroll down - zoom in X-axis
-                                                xZoom + 0.1f
+                                                xZoom + zoomIncrement
                                             }
-                                            val clampedZoom = newZoom.coerceIn(0.03f, 5f)
+                                            val clampedZoom = newZoom.coerceIn(0.001f, 5f)
                                             
                                             // Adjust offset to keep zoom centered on screen center
                                             val screenCenter = size.width / 2f
@@ -285,6 +332,12 @@ fun CandlestickChart(
                                             
                                             xZoom = clampedZoom
                                             isInitialPosition = false
+                                            
+                                            // Reset stable viewport when user manually zooms
+                                            if (useStableViewport) {
+                                                useStableViewport = false
+                                            }
+                                            
                                             change.consume()
                                         }
                                     }
@@ -438,10 +491,13 @@ fun CandlestickChart(
                     val priceRatio = (lastPrice - displayMinPrice) / priceRange
                     val ltpY = (scaledHeight - (priceRatio * scaledHeight)).toFloat() + yOffset
                     
-                    LTPPriceLabel(
-                        price = lastPrice,
-                        yPosition = ltpY
-                    )
+                    // Only show LTP label if it's within canvas bounds
+                    if (ltpY >= 0f && ltpY <= canvasSize.height) {
+                        LTPPriceLabel(
+                            price = lastPrice,
+                            yPosition = ltpY
+                        )
+                    }
                 }
                 
                 // Crosshair Price Label on Price Bar (similar to LTP)
@@ -454,10 +510,13 @@ fun CandlestickChart(
                         val priceRatio = 1.0 - (adjustedY / scaledHeight).toDouble()
                         val currentPrice = displayMinPrice + (priceRatio * priceRange)
                         
-                        CrosshairPriceBarLabel(
-                            price = currentPrice,
-                            yPosition = pos.y
-                        )
+                        // Only show crosshair price label if it's within canvas bounds
+                        if (pos.y >= 0f && pos.y <= canvasSize.height) {
+                            CrosshairPriceBarLabel(
+                                price = currentPrice,
+                                yPosition = pos.y
+                            )
+                        }
                     }
                 }
             }

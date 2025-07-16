@@ -134,7 +134,7 @@ fun ChartPage(
                     val historicalData = binanceApi.getBtcUsdtKlines(
                         symbol = symbol,
                         interval = selectedTimeframe.apiValue,
-                        limit = 500,
+                        limit = 10000,
                         endTime = oldestCandleTime - 1
                     )
 
